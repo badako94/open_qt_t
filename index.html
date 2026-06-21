@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>나눔QT | 매일의 은혜 (6년 여정)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <style>
+        body { font-size: 16px; line-height: 1.6; }
+        @media (min-width: 768px) { 
+            textarea { font-size: 18px; } 
+            .content-text { font-size: 18px; } 
+        }
+    </style>
+</head>
+<body class="bg-stone-50 text-stone-900 pb-20 font-sans">
+    
+    <div id="loading-overlay" class="fixed inset-0 bg-stone-900/80 backdrop-blur-sm z-50 flex flex-col items-center justify-center text-white px-4">
+        <div class="w-16 h-16 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mb-6"></div>
+        <h2 class="text-2xl font-black tracking-wider text-emerald-400 mb-2">🕊️ 나눔QT 준비 중...</h2>
+        <p id="loading-status" class="text-stone-300 font-medium text-center">성경 및 스케줄 데이터를 연결하고 있습니다.</p>
+    </div>
+
+    <div id="main-content" class="max-w-2xl mx-auto p-4 md:p-8 space-y-8 hidden">
+        <header class="text-center pt-4 pb-2">
+            <h1 class="text-4xl font-black text-emerald-900 tracking-tight">🕊️ 나눔QT</h1>
+            <p class="text-xs font-bold text-stone-400 tracking-widest mt-1 uppercase">6 Year Bible Reading Journey</p>
+        </header>
+
+        <div id="user-setup-card" class="bg-emerald-50 border-2 border-emerald-300 p-6 rounded-3xl shadow-sm space-y-4 hidden">
+            <div class="flex items-center space-x-3">
+                <span class="text-3xl">🌱</span>
+                <div>
+                    <h3 class="font-black text-emerald-950 text-lg">나눔QT 여정 시작하기</h3>
+                    <p class="text-xs text-emerald-700 font-medium">매일의 본문을 자동 계산하기 위해 기록을 남겨주세요.</p>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                <div>
+                    <label class="block text-xs font-bold text-emerald-900 uppercase mb-1">성함 (이름)</label>
+                    <input type="text" id="setup-name" placeholder="예: 배준호" class="w-full p-3 rounded-xl border border-emerald-300 font-bold text-stone-800 bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none shadow-inner">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-emerald-900 uppercase mb-1">QT 시작 날짜</label>
+                    <input type="date" id="setup-start-date" class="w-full p-3 rounded-xl border border-emerald-300 font-bold text-stone-800 bg-white focus:ring-2 focus:ring-emerald-600 focus:outline-none shadow-inner">
+                </div>
+            </div>
+            <button onclick="saveUserInfo()" class="w-full bg-emerald-900 hover:bg-emerald-800 text-white font-black py-3.5 px-6 rounded-xl transition shadow-md">정보 저장 및 오늘의 본문 시작</button>
+        </div>
+
+        <div id="user-info-banner" class="bg-white border border-stone-200 p-4.5 rounded-2xl shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3 hidden">
+            <div class="flex items-center space-x-3 w-full sm:w-auto">
+                <div class="w-11 h-11 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-900 font-black text-xl shadow-inner shrink-0">📖</div>
+                <div class="overflow-hidden">
+                    <div class="text-xs text-stone-400 font-bold tracking-wider">오늘의 은혜 스케줄</div>
+                    <div class="text-base font-black text-emerald-950 truncate"><span id="display-user-name"></span>님의 여정 <span class="text-xs font-medium text-stone-500 ml-0.5">(시작일: <span id="display-start-date"></span>)</span></div>
+                </div>
+            </div>
+            <button onclick="editUserInfo()" class="text-xs text-stone-500 hover:text-emerald-800 underline font-bold px-2 py-1 shrink-0">설정 변경</button>
+        </div>
+
+        <div class="bg-emerald-900 text-white p-6 rounded-3xl shadow-md flex flex-col items-center justify-center space-y-3.5 border border-emerald-800">
+            <div class="text-xs text-emerald-200 tracking-widest font-black uppercase">성경 읽기 스케줄 선택 (1 ~ 2191일차)</div>
+            <div class="flex items-center space-x-2 sm:space-x-4 w-full justify-center">
+                <button onclick="changeDay(-1)" title="이전 일차" class="w-11 h-11 bg-emerald-800 hover:bg-emerald-700 active:scale-95 rounded-2xl flex items-center justify-center font-black text-lg transition shadow">◀</button>
+                <div class="flex items-center space-x-2 bg-emerald-950/80 px-5 py-2 rounded-2xl border border-emerald-700/60 shadow-inner">
+                    <span class="text-sm sm:text-base font-bold text-emerald-300">제</span>
+                    <input type="number" id="day-number-input" min="1" max="2191" value="1" onchange="onDayNumberInput()" class="w-16 sm:w-20 bg-transparent text-center font-black text-2xl sm:text-3xl text-white focus:outline-none">
+                    <span class="text-sm sm:text-base font-bold text-emerald-300">일차</span>
+                </div>
+                <button onclick="changeDay(1)" title="다음 일차" class="w-11 h-11 bg-emerald-800 hover:bg-emerald-700 active:scale-95 rounded-2xl flex items-center justify-center font-black text-lg transition shadow">▶</button>
+            </div>
+            <div class="w-full max-w-md pt-1">
+                <select id="day-schedule-select" onchange="onDaySelectDropdown()" class="w-full bg-emerald-950 border border-emerald-700/80 text-emerald-100 text-sm rounded-xl p-2.5 font-medium focus:outline-none focus:ring-2 focus:ring-emerald-400">
+                    <option value="">스케줄 목록 로딩 중...</option>
+                </select>
+            </div>
+        </div>
+
+        <div id="ui" class="space-y-8">
+            <section class="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-stone-100">
+                <h2 class="text-xs font-bold text-emerald-600 mb-3 tracking-widest uppercase">1단계 : 찬양하기</h2>
+                <a id="praise-link" href="#" target="_blank" class="block hover:opacity-70 transition">
+                    <div id="praise-title" class="font-black text-xl md:text-2xl text-emerald-950 underline underline-offset-4 decoration-emerald-300">찬양 본문 로딩 중...</div>
+                    <div id="praise-singer" class="text-sm md:text-base text-stone-500 font-medium mt-1.5"></div>
+                </a>
+            </section>
+
+            <section class="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-stone-100">
+                <h2 class="text-xs font-bold text-emerald-600 mb-3 tracking-widest uppercase">2단계 : 말씀 읽기</h2>
+                <div id="passage-range" class="font-black text-xl md:text-2xl mb-5 text-emerald-900 pb-3 border-b border-stone-100"></div>
+                <div id="verses-box" class="text-stone-800 leading-relaxed space-y-2.5 text-base md:text-lg content-text"></div>
+            </section>
+
+            <section class="space-y-4">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-xs font-bold text-emerald-600 tracking-widest uppercase">3단계 : 묵상과 기록</h2>
+                    <span class="text-xs text-stone-400 font-medium">※ 입력 시 일차별 자동 저장</span>
+                </div>
+                <textarea id="s1" oninput="saveNote('s1')" class="w-full p-4 md:p-6 rounded-2xl border border-stone-200 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 focus:outline-none text-base md:text-lg shadow-sm" rows="2" placeholder="1. 묵상 - 이 말씀을 통해 하시고자 하는 말씀이 무엇일까요?"></textarea>
+                <textarea id="s2" oninput="saveNote('s2')" class="w-full p-4 md:p-6 rounded-2xl border border-stone-200 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 focus:outline-none text-base md:text-lg shadow-sm" rows="2" placeholder="2. 적용 - 내 삶에 어떻게 적용 할 수 있을까요?"></textarea>
+                <textarea id="s3" oninput="saveNote('s3')" class="w-full p-4 md:p-6 rounded-2xl border border-stone-200 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 focus:outline-none text-base md:text-lg shadow-sm" rows="2" placeholder="3. 교감 - 이 말씀에서 느껴지는게 있나요?"></textarea>
+                <textarea id="s4" oninput="saveNote('s4')" class="w-full p-4 md:p-6 rounded-2xl border border-stone-200 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 focus:outline-none text-base md:text-lg shadow-sm" rows="2" placeholder="4. 기도 - 오늘의 기도 제목은 무엇인가요?"></textarea>
+                <textarea id="s5" oninput="saveNote('s5')" class="w-full p-4 md:p-6 rounded-2xl border border-stone-200 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 focus:outline-none text-base md:text-lg shadow-sm" rows="2" placeholder="5. 감사일기 - 오늘의 감사 할 일들을 남겨보아요!"></textarea>
+            </section>
+
+            <button onclick="copy()" class="w-full bg-emerald-900 text-white p-6 rounded-2xl font-black text-lg hover:bg-emerald-800 active:scale-[0.99] transition shadow-lg">📋 오늘의 QT 공유하기 (복사)</button>
+            <footer class="text-center text-stone-400 font-bold text-xs py-4 tracking-widest">Made by BAE JUN HO</footer>
+        </div>
+    </div>
+
+    <script>
+        // 원격 GitHub Raw URL (PC 바탕화면 구동용 1순위)
+        const URL_BIBLE = "https://raw.githubusercontent.com/badako94/open-qt/main/bible.csv";
+        const URL_PRAISE = "https://raw.githubusercontent.com/badako94/open-qt/main/praise.csv";
+        const URL_SCHEDULE = "https://raw.githubusercontent.com/badako94/open-qt/main/6year.csv";
+
+        // 성경 책 이름 정규화 매핑표 (약자 및 풀네임 완벽 대응)
+        const bookAliases = {
+            "창세기": ["창", "창세기"], "출애굽기": ["출", "출애굽기"], "레위기": ["레", "레위기"],
+            "민수기": ["민", "민수기"], "신명기": ["신", "신명기"], "여호수아": ["수", "여호수아"],
+            "사사기": ["삿", "사사기"], "룻기": ["룻", "룻기"], "사무엘상": ["삼상", "사무엘상"],
+            "사무엘하": ["삼하", "사무엘하"], "열왕기상": ["왕상", "열왕기상"], "열왕기하": ["왕하", "열왕기하"],
+            "역대상": ["대상", "역대상"], "역대하": ["대하", "역대하"], "에스라": ["스", "에스라"],
+            "느헤미야": ["느", "느헤미야"], "에스더": ["에", "에스더"], "욥기": ["욥", "욥기"],
+            "시편": ["시", "시편"], "잠언": ["잠", "잠언"], "전도서": ["전", "전도서"],
+            "아가": ["아", "아가"], "이사야": ["사", "이사야"], "예레미야": ["렘", "예레미야"],
+            "예레미야애가": ["애", "렘애", "예레미야애가"], "에스겔": ["겔", "에스겔"], "다니엘": ["단", "다니엘"],
+            "호세아": ["호", "호세아"], "요엘": ["욜", "요엘"], "아모스": ["암", "아모스"],
+            "오바댜": ["옵", "오바댜"], "요나": ["욘", "요나"], "미가": ["미", "미가"],
+            "나훔": ["나", "나훔"], "하박국": ["합", "하박국"], "스바냐": ["습", "스바냐"],
+            "학개": ["학", "학개"], "스가랴": ["슥", "스가랴"], "말라기": ["말", "말라기"],
+            "마태복음": ["마", "마태복음"], "마가복음": ["막", "마가복음"], "누가복음": ["눅", "누가복음"],
+            "요한복음": ["요", "요한복음"], "사도행전": ["행", "사도행전"], "로마서": ["롬", "로마서"],
+            "고린도전서": ["고전", "고린도전서"], "고린도후서": ["고후", "고린도후서"], "갈라디아서": ["갈", "갈라디아서"],
+            "에베소서": ["엡", "에베", "에베소서"], "빌립보서": ["빌", "빌립보서"], "골로새서": ["골", "골로새서"],
+            "데살로니가전서": ["살전", "데살로니가전서"], "데살로니가후서": ["살후", "데살로니가후서"],
+            "디모데전서": ["딤전", "디모데전서"], "디모데후서": ["딤후", "디모데후서"], "디도서": ["딛", "디도서"],
+            "빌레몬서": ["몬", "빌레몬서"], "히브리서": ["히", "히브리서"], "야고보서": ["약", "야고보서"],
+            "베드로전서": ["벧전", "베드로전서"], "베드로후서": ["벧후", "베드로후서"], "요한일서": ["요일", "요한일서"],
+            "요한이서": ["요이", "요후", "요한이서"], "요한삼서": ["요삼", "요한삼서"], "유다서": ["유", "유다서"],
+            "요한계시록": ["계", "요한계시록"]
+        };
+
+        let B = [], P = [], S = [];
+        let currentDayNumber = 1;
+
+        window.onload = () => {
+            initDataCascade();
+        };
+
+        // 이중 Fallback 구조의 순차적 로딩 (무한 로딩 원천 차단)
+        function loadCsvSafe(primaryUrl, localFallbackUrl, statusText, callback) {
+            document.getElementById('loading-status').innerText = statusText;
+            Papa.parse(primaryUrl, {
+                download: true,
+                header: false,
+                complete: res => callback(true, res.data),
+                error: err => {
+                    console.warn(`[원격 연결 실패, 로컬 파일 시도] ${primaryUrl}`, err);
+                    Papa.parse(localFallbackUrl, {
+                        download: true,
+                        header: false,
+                        complete: res => callback(true, res.data),
+                        error: errLocal => callback(false, null)
+                    });
+                }
+            });
+        }
+
+        function initDataCascade() {
+            loadCsvSafe(URL_BIBLE, "./bible.csv", "1/3 : 성경 본문(bible.csv) 불러오는 중...", (success1, data1) => {
+                if(!success1 || !data1 || data1.length < 2) {
+                    showCriticalError("성경 데이터(bible.csv)를 불러오지 못했습니다.");
+                    return;
+                }
+                B = data1.filter(r => r.length >= 5 && r[0]);
+
+                loadCsvSafe(URL_PRAISE, "./praise.csv", "2/3 : 찬양 목록(praise.csv) 불러오는 중...", (success2, data2) => {
+                    if(!success2 || !data2 || data2.length < 2) {
+                        showCriticalError("찬양 데이터(praise.csv)를 불러오지 못했습니다.");
+                        return;
+                    }
+                    P = data2.filter(r => r.length >= 3 && r[1]);
+
+                    loadCsvSafe(URL_SCHEDULE, "./6year.csv", "3/3 : 6년 읽기 스케줄(6year.csv) 불러오는 중...", (success3, data3) => {
+                        if(!success3 || !data3 || data3.length < 1) {
+                            showCriticalError("성경 읽기 스케줄(6year.csv)을 불러오지 못했습니다.");
+                            return;
+                        }
+                        S = data3.filter(r => r.length >= 2 && parseInt(r[0], 10));
+                        
+                        onAllDataReady();
+                    });
+                });
+            });
+        }
+
+        function showCriticalError(msg) {
+            document.getElementById('loading-overlay').innerHTML = `
+                <div class="bg-red-900/90 border border-red-500 p-6 rounded-2xl max-w-md text-center space-y-3">
+                    <div class="text-4xl">🚨</div>
+                    <h3 class="text-xl font-bold text-white">데이터 로딩 에러</h3>
+                    <p class="text-sm text-red-200">${msg}</p>
+                    <p class="text-xs text-stone-300 pt-2 border-t border-red-800">인터넷 연결을 확인하시거나 GitHub 저장소에 파일이 올바르게 위치하는지 확인해주세요.</p>
+                    <button onclick="location.reload()" class="mt-3 px-4 py-2 bg-white text-red-950 font-bold rounded-xl text-sm shadow">다시 시도</button>
+                </div>
+            `;
+        }
+
+        function getKoreaTodayStr() {
+            const now = new Date();
+            const krTime = new Date(now.getTime() + (9 * 60 * 60 * 1000) + now.getTimezoneOffset() * 60000);
+            return krTime.toISOString().split('T')[0];
+        }
+
+        function onAllDataReady() {
+            // 로딩창 숨기기 및 메인 표시
+            document.getElementById('loading-overlay').classList.add('hidden');
+            document.getElementById('main-content').classList.remove('hidden');
+
+            // 스케줄 드롭다운 채우기
+            const selectEl = document.getElementById('day-schedule-select');
+            selectEl.innerHTML = S.map(row => `<option value="${row[0]}">${row[0]}일차 : ${row[1]}</option>`).join('');
+
+            // 사용자 등록 정보 확인
+            const savedName = localStorage.getItem('qt_userName');
+            const savedStartDate = localStorage.getItem('qt_startDate');
+            const todayStr = getKoreaTodayStr();
+
+            if(!savedName || !savedStartDate) {
+                // 처음 접속: 설정 카드 오픈
+                document.getElementById('user-setup-card').classList.remove('hidden');
+                document.getElementById('user-info-banner').classList.add('hidden');
+                document.getElementById('setup-start-date').value = todayStr;
+                renderDay(1);
+            } else {
+                // 등록 완료: 배너 오픈 및 일차 자동 계산
+                document.getElementById('user-setup-card').classList.add('hidden');
+                document.getElementById('user-info-banner').classList.remove('hidden');
+                document.getElementById('display-user-name').innerText = savedName;
+                document.getElementById('display-start-date').innerText = savedStartDate;
+
+                // 공식: (오늘 - 시작일) + 1
+                const msDiff = new Date(todayStr).getTime() - new Date(savedStartDate).getTime();
+                const calcDay = Math.floor(msDiff / (1000 * 60 * 60 * 24)) + 1;
+                
+                let targetDay = calcDay < 1 ? 1 : calcDay > S.length ? S.length : calcDay;
+                renderDay(targetDay);
+            }
+        }
+
+        // 스케줄 문자열 파싱 및 성경 본문 추출 알고리즘
+        function getMatchingVerses(scheduleStr) {
+            scheduleStr = scheduleStr.trim();
+            const lastSpaceIdx = scheduleStr.lastIndexOf(' ');
+            if(lastSpaceIdx === -1) return [];
+
+            const bookName = scheduleStr.substring(0, lastSpaceIdx).trim(); // "창세기"
+            const rangeStr = scheduleStr.substring(lastSpaceIdx + 1).trim(); // "1:26-2:3" or "1:1-13"
+
+            const abbrs = bookAliases[bookName] || [bookName];
+
+            const dashSplit = rangeStr.split('-');
+            let startC = 1, startV = 1, endC = 1, endV = 999;
+
+            // 시작 장:절
+            const sColon = dashSplit[0].split(':');
+            if(sColon.length >= 2) {
+                startC = parseInt(sColon[0], 10);
+                startV = parseInt(sColon[1], 10);
+            } else {
+                startC = parseInt(sColon[0], 10);
+                startV = 1;
+            }
+
+            // 끝 장:절
+            if(dashSplit.length >= 2) {
+                if(dashSplit[1].includes(':')) {
+                    const eColon = dashSplit[1].split(':');
+                    endC = parseInt(eColon[0], 10);
+                    endV = parseInt(eColon[1], 10);
+                } else {
+                    // "1:1-13" 처럼 절만 있는 경우
+                    endC = startC;
+                    endV = parseInt(dashSplit[1], 10);
+                }
+            } else {
+                // 단일 절 또는 단일 장
+                endC = startC;
+                endV = startV;
+            }
+
+            const startScore = startC * 1000 + startV;
+            const endScore = endC * 1000 + endV;
+
+            return B.filter(row => {
+                const rowBook = row[0].trim();
+                if(!abbrs.includes(rowBook)) return false;
+
+                const rc = parseInt(row[1], 10);
+                const rv = parseInt(row[2], 10);
+                const rowScore = rc * 1000 + rv;
+
+                return rowScore >= startScore && rowScore <= endScore;
+            });
+        }
+
+        function renderDay(dayNum) {
+            dayNum = parseInt(dayNum, 10);
+            if(isNaN(dayNum) || dayNum < 1) dayNum = 1;
+            if(dayNum > S.length) dayNum = S.length;
+
+            currentDayNumber = dayNum;
+
+            // UI 컨트롤 동기화
+            document.getElementById('day-number-input').value = dayNum;
+            document.getElementById('day-schedule-select').value = dayNum;
+
+            // 스케줄 텍스트 찾기
+            const schedRow = S.find(r => parseInt(r[0], 10) === dayNum) || S[0];
+            const passageText = schedRow[1];
+
+            // 1단계: 찬양 출력
+            if(P.length > 0) {
+                const pIdx = (dayNum - 1) % P.length;
+                const pRow = P[pIdx];
+                document.getElementById('praise-title').innerText = pRow[1] + " 🔍";
+                document.getElementById('praise-singer').innerText = pRow[2] || "오늘의 찬양";
+                document.getElementById('praise-link').href = `https://www.youtube.com/results?search_query=${encodeURIComponent(pRow[1])}`;
+            }
+
+            // 2단계: 말씀 본문 출력
+            document.getElementById('passage-range').innerText = passageText;
+            const verses = getMatchingVerses(passageText);
+            const versesBox = document.getElementById('verses-box');
+
+            if(verses.length > 0) {
+                versesBox.innerHTML = verses.map(v => `
+                    <div class="flex items-start py-1 px-2 rounded-xl hover:bg-emerald-50/60 transition">
+                        <span class="text-emerald-700 font-black mr-3 shrink-0 w-6 text-right">${v[2]}</span>
+                        <span class="text-stone-800">${v[4]}</span>
+                    </div>
+                `).join('');
+            } else {
+                versesBox.innerHTML = `
+                    <div class="text-stone-400 italic text-center py-8">
+                        말씀 본문을 불러오지 못했습니다. (${passageText})<br>
+                        <span class="text-xs">성경 파일(bible.csv)의 책 이름 매핑을 확인해주세요.</span>
+                    </div>
+                `;
+            }
+
+            // 3단계: 해당 일차의 묵상 노트 복원
+            ['s1', 's2', 's3', 's4', 's5'].forEach(id => {
+                const el = document.getElementById(id);
+                if(el) {
+                    el.value = localStorage.getItem(`qt_note_day_${dayNum}_${id}`) || "";
+                }
+            });
+        }
+
+        // 묵상 노트 입력 시 일차별 자동 저장
+        function saveNote(id) {
+            const el = document.getElementById(id);
+            if(el) {
+                localStorage.setItem(`qt_note_day_${currentDayNumber}_${id}`, el.value);
+            }
+        }
+
+        function changeDay(delta) {
+            renderDay(currentDayNumber + delta);
+        }
+
+        function onDayNumberInput() {
+            renderDay(document.getElementById('day-number-input').value);
+        }
+
+        function onDaySelectDropdown() {
+            renderDay(document.getElementById('day-schedule-select').value);
+        }
+
+        function saveUserInfo() {
+            const nameVal = document.getElementById('setup-name').value.trim();
+            const dateVal = document.getElementById('setup-start-date').value;
+
+            if(!nameVal) {
+                alert("성함을 입력해주세요!");
+                document.getElementById('setup-name').focus();
+                return;
+            }
+            if(!dateVal) {
+                alert("시작 날짜를 지정해주세요!");
+                return;
+            }
+
+            localStorage.setItem('qt_userName', nameVal);
+            localStorage.setItem('qt_startDate', dateVal);
+
+            alert(`🎉 ${nameVal}님의 여정이 시작됩니다!`);
+            onAllDataReady(); // UI 갱신 및 일차 계산
+        }
+
+        function editUserInfo() {
+            document.getElementById('user-setup-card').classList.remove('hidden');
+            document.getElementById('user-info-banner').classList.add('hidden');
+            document.getElementById('setup-name').value = localStorage.getItem('qt_userName') || "";
+            document.getElementById('setup-start-date').value = localStorage.getItem('qt_startDate') || getKoreaTodayStr();
+        }
+
+        function copy() {
+            const userName = localStorage.getItem('qt_userName') || "은혜의";
+            const rangeText = document.getElementById('passage-range').innerText;
+            const todayStr = getKoreaTodayStr();
+
+            const s1Val = document.getElementById('s1').value.trim() || "내용 없음";
+            const s2Val = document.getElementById('s2').value.trim() || "내용 없음";
+            const s3Val = document.getElementById('s3').value.trim() || "내용 없음";
+            const s4Val = document.getElementById('s4').value.trim() || "내용 없음";
+            const s5Val = document.getElementById('s5').value.trim() || "내용 없음";
+
+            const shareText = `[🕊️ ${userName}님의 나눔QT] (${todayStr})\n📜 스케줄 : 제 ${currentDayNumber} 일차\n📖 말씀 본문 : ${rangeText}\n\n1. 묵상 : ${s1Val}\n2. 적용 : ${s2Val}\n3. 교감 : ${s3Val}\n4. 기도 : ${s4Val}\n5. 감사일기 : ${s5Val}`;
+
+            navigator.clipboard.writeText(shareText).then(() => {
+                alert('📋 오늘의 QT 묵상 카드가 클립보드에 복사되었습니다! 카카오톡이나 노트에 붙여넣기 하세요.');
+            }).catch(err => {
+                alert('복사 중 브라우저 권한 에러가 발생했습니다. 텍스트를 직접 드래그하여 복사해주세요.');
+            });
+        }
+    </script>
+</body>
+</html>
